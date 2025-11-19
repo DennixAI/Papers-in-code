@@ -2,7 +2,7 @@
 
 This repository now focuses on a single Jupyter notebook, `dyt_cifar10.ipynb`, that trains the Dynamic Tanh Transformer (DyT) on CIFAR-10 with RandAugment, mixup, mixed precision, and local logging/plotting.
 
-![DyT CIFAR-10 Training Curve](5084ee96-3af0-46e0-be3e-36016b664d43.png)
+![DyT CIFAR-10 Training Curve](plot.png)
 
 ## Quick Start
 1. Create an environment and install the minimal dependencies:
