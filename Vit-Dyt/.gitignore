@@ -1,0 +1,21 @@
+# Ignore everything at the repo root by default
+/*
+data
+checkpoints
+# Keep the essential project files/directories
+!.gitignore
+!README.md
+!requirements.txt
+!dyt_cifar10.ipynb
+!randomaug.py
+!utils.py
+!dyt.py
+!plots/
+!plots/.gitkeep
+
+# Ignore large/local artifact directories
+data/
+checkpoint/
+log/
+wandb/
+
