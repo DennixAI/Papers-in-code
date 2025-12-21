@@ -19,8 +19,9 @@ class GemmaRMSNorm(nn.Module):
 class GemmaRotaryEmbedding(nn.Module):
     def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None):
         super().__init__()
-        self.inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float().to(device) / dim))
-        self.register_buffer("inv_freq", self.inv_freq, persistent=False)
+        # FIX: Calculate as a local variable first, then register
+        inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float().to(device) / dim))
+        self.register_buffer("inv_freq", inv_freq, persistent=False)
 
     def forward(self, x, seq_len=None):
         t = torch.arange(seq_len, device=x.device, dtype=self.inv_freq.dtype)
