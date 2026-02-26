@@ -77,4 +77,6 @@ After a 20,000 step training run on the TinyStories dataset, GemmaZero successfu
 A Perplexity of 4.00 indicates the model narrows down its next-word prediction to just 4 highly likely choices out of a 50,000+ token vocabulary, resulting in highly coherent, grammatically perfect English generation.
 
 
-![Image](image.png)
+<p align="center">
+  <img src="image.png" alt="Logo" width="200"/>
+</p>
