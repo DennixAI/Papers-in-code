@@ -78,5 +78,5 @@ A Perplexity of 4.00 indicates the model narrows down its next-word prediction t
 
 
 <p align="center">
-  <img src="image.png" alt="Logo" width="200"/>
+  <img src="image.png" alt="loss" width="200"/>
 </p>
