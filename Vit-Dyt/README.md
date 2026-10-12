@@ -1,28 +1,99 @@
 # DyT CIFAR-10 Notebook
 
 ## Research Papers
-- **Vision Transformer (ViT)** — Dosovitskiy et al., "An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale" (ICLR 2021). ViT introduced patch embeddings plus transformer encoders for vision, which DyT inherits.
-- **Dynamic Tanh Transformer (DyT)** — Zhu et al., "Transformers without Normalization" (2025). DyT swaps LayerNorm for learnable Dynamic Tanh blocks, improving stability on small datasets like CIFAR-10.
 
-![Training Curve](plot.png)
+- **Vision Transformer (ViT)** — Dosovitskiy et al., *"An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale"* (ICLR 2021). ViT introduced patch embeddings and Transformer encoders for image classification.
+- **Dynamic Tanh (DyT)** — Zhu et al., *"Transformers without Normalization"* (CVPR 2025). DyT replaces normalization layers such as LayerNorm with a learnable Dynamic Tanh operation.
 
 ## Techniques and Features
-- Runs entirely inside `dyt_cifar10.ipynb`, keeping the training recipe self-contained for notebook-friendly work.
-- CIFAR-10 preprocessing includes RandAugment (N=2, M=9), random crop/flip, and normalization, followed by mixup (α=0.1) within each training batch.
-- DyT (defined in the notebook) is built with patch embeddings, Dynamic Tanh in place of normalization, and a cosine-scheduled AdamW optimizer with AMP scaling to stay within an 8–10 GB VRAM budget.
-- Automatic resume: complete checkpoints, EMA weights, diagnostic histories, and CSV metrics are uploaded to the configured Hugging Face model repository every five epochs. Checkpoints in the selected run folder resume automatically. Configuration mismatches or invalid checkpoints stop with an error; they are never silently bypassed.
-- Matplotlib plotting saves `plots/dyt_cifar10_training.png` for quick loss/accuracy inspection, and `plots/.gitkeep` keeps the folder in the repo.
+
+- Runs entirely inside `dyt_cifar10.ipynb`, including the ViT/DyT architecture, augmentation pipeline, training loop, evaluation, and checkpoint handling.
+- CIFAR-10 preprocessing uses random crop/flip, RandAugment with `N=2, M=9`, normalization, and mixup with `α=0.1`.
+- Replaces LayerNorm with learnable Dynamic Tanh blocks throughout the Transformer.
+- Uses mean pooling over patch tokens by default instead of relying on a CLS token.
+- Uses Xavier initialization for the patch projection.
+- AdamW uses separate decay and no-decay parameter groups so biases, DyT parameters, and embeddings are not unnecessarily weight-decayed.
+- Training uses a 300-epoch schedule with 10 warmup epochs, peak learning rate `3e-4`, minimum learning rate `1e-6`, cosine decay, AMP, gradient clipping, and progressive DropPath up to `0.1`.
+- Maintains EMA weights with decay `0.9999` and evaluates both raw and EMA models.
+- Tracks training mixup loss, clean training loss and accuracy, validation loss and accuracy, and EMA validation metrics.
+- Complete checkpoints, histories, metrics, and plots are uploaded to the configured Hugging Face repository every five epochs.
+- Checkpoints resume automatically only when the saved experiment configuration matches the current run.
+
+## Training Workflow
+
+Hyperparameter selection is performed using a deterministic 45k/5k training and validation split.
+
+The notebook tracks:
+
+- augmented and mixup training loss,
+- clean training loss and accuracy,
+- validation loss and accuracy,
+- EMA validation loss and accuracy.
+
+Once the configuration is selected, the final model is retrained from scratch using all 50,000 CIFAR-10 training images.
+
+The test set is reserved for final evaluation only.
+
+Each experiment should use a separate Hugging Face experiment folder. Validation experiments and final 50k training runs are stored separately so checkpoints and metrics do not overwrite each other.
+
+## Training Experiments
+
+The current default configuration uses:
+
+- mean pooling over the 64 patch tokens,
+- Xavier initialization for the patch projection,
+- 300 total epochs,
+- 10 warmup epochs,
+- peak learning rate `3e-4`,
+- minimum learning rate `1e-6`,
+- cosine learning-rate decay,
+- DropPath increasing progressively up to `0.1`,
+- EMA decay `0.9999`,
+- RandAugment with `N=2, M=9`,
+- mixup with `α=0.1`,
+- AdamW with separate decay and no-decay parameter groups.
+
+Raw and EMA validation performance are evaluated every epoch.
+
+Clean training accuracy is also measured without random augmentation or mixup so the train/validation generalization gap can be monitored directly.
+
+For controlled experiments, restart the kernel between runs and keep all unrelated settings fixed.
+
+## Current Status
+
+The revised training pipeline converges substantially faster than the original implementation and reaches much higher validation accuracy.
+
+A remaining issue is the generalization gap.
+
+Clean training accuracy approaches approximately 99%, while validation accuracy plateaus substantially lower and validation loss stops improving meaningfully.
+
+This suggests that the model is overfitting despite the added regularization.
+
+The training pipeline itself is stable, but further work is needed to improve generalization and raise the validation ceiling.
+
+## TODO
+
+- Reduce the remaining train/validation generalization gap.
+- Investigate the validation-loss plateau.
+- Tune DropPath strength.
+- Tune mixup strength.
+- Tune RandAugment strength.
+- Tune weight decay.
+- Test CutMix as an additional regularization method.
+- Test label smoothing.
+- Run controlled ablations so only one major variable changes per experiment.
+- Compare raw and EMA validation performance.
+- Retrain the selected configuration on all 50,000 CIFAR-10 training images.
+- Evaluate the final selected model once on the CIFAR-10 test set.
+- Keep Hugging Face credentials in Colab Secrets instead of storing them directly in the notebook.
 
 ## Tips and Tricks
-1. Run the notebook in Jupyter or Colab so you can rerun individual cells; the checkpoint system makes it safe to interrupt the kernel.
-2. Adjust a single config cell (batch size, dim, depth, learning rate) instead of spreading flags across multiple scripts.
-3. Keep the large folders (`Vit-Dyt/data`, `checkpoint`, `log`, `wandb`) out of Git—they are ignored, so they can grow locally without affecting pushes.
-4. After training, re-open `plots/dyt_cifar10_training.png` to verify the learning curves before sharing results.
 
-## Training experiments
-
-The notebook defaults to averaging the 64 patch tokens before the final DyT and head, Xavier initialization of the flattened patch projection, a 300-epoch schedule (10 warmup epochs, peak LR 3e-4, minimum LR 1e-6), progressively increasing DropPath up to 0.1, and EMA decay 0.9999. Raw and EMA validation accuracy are evaluated each epoch, alongside clean training accuracy without random augmentation or mixup.
-
-For a pooling-only comparison, use `PATCH_INIT="kaiming"`, `DROP_PATH_RATE=0.0`, `TOTAL_EPOCHS=200`, and `MIN_LEARNING_RATE=1e-5`, then compare `POOLING="cls"` with `POOLING="mean"`. Restart the kernel for each run and keep the remaining settings fixed.
-
-Select hyperparameters and raw versus EMA weights on the 45k/5k split. Then restart with `FINAL_TRAINING=True` and the chosen `FINAL_EVAL_WEIGHTS` to train from scratch on all 50,000 images. The final cell evaluates the test set only in this mode, once per session. Set `HF_EXPERIMENT_FOLDER` to a new folder for each experiment. The default `checkpoints/mean-pooling-ema` has separate `validation` and `final-50k` subfolders in the existing repository. All uploaded checkpoints, CSVs, and plots use the selected run folder; previous root files are preserved. Folders appear on the first upload.
+1. Run the notebook in Jupyter or Google Colab so individual cells can be rerun during experimentation.
+2. Restart the kernel before each controlled experiment.
+3. Change only one major variable at a time when running ablations.
+4. Use a new Hugging Face experiment folder for every run.
+5. Compare clean training metrics against validation metrics when diagnosing underfitting or overfitting.
+6. Use validation performance for hyperparameter selection, not the test set.
+7. After selecting the final configuration, retrain from scratch on all 50,000 CIFAR-10 training samples.
+8. Keep generated datasets, checkpoints, logs, and experiment outputs out of Git.
