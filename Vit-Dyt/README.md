@@ -8,14 +8,14 @@
 ## Techniques and Features
 
 - Runs entirely inside `dyt_cifar10.ipynb`, including the ViT/DyT architecture, augmentation pipeline, training loop, evaluation, and checkpoint handling.
-- CIFAR-10 preprocessing uses random crop/flip, RandAugment with `N=2, M=9`, normalization, and mixup with `α=0.1`.
+- CIFAR-10 preprocessing uses random crop/flip, RandAugment with `N=2, M=9`, normalization, and a selectable mixup/CutMix recipe.
 - Replaces LayerNorm with learnable Dynamic Tanh blocks throughout the Transformer.
 - Uses mean pooling over patch tokens by default instead of relying on a CLS token.
 - Uses Xavier initialization for the patch projection.
 - AdamW uses separate decay and no-decay parameter groups so biases, DyT parameters, and embeddings are not unnecessarily weight-decayed.
 - Training uses a 300-epoch schedule with 10 warmup epochs, peak learning rate `3e-4`, minimum learning rate `1e-6`, cosine decay, AMP, gradient clipping, and progressive DropPath up to `0.1`.
-- Maintains EMA weights with decay `0.9999` and evaluates both raw and EMA models.
-- Tracks training mixup loss, clean training loss and accuracy, validation loss and accuracy, and EMA validation metrics.
+- Maintains EMA weights (decay `0.9999` in the resumed `wd05` default) and evaluates both raw and EMA models.
+- Tracks mixed-target training loss, clean training loss and accuracy, validation loss and accuracy, and EMA validation metrics.
 - Complete checkpoints, histories, metrics, and plots are uploaded to the configured Hugging Face repository every five epochs.
 - Checkpoints resume automatically only when the saved experiment configuration matches the current run.
 
@@ -25,7 +25,7 @@ Hyperparameter selection is performed using a deterministic 45k/5k training and 
 
 The notebook tracks:
 
-- augmented and mixup training loss,
+- augmented and mixed-target training loss,
 - clean training loss and accuracy,
 - validation loss and accuracy,
 - EMA validation loss and accuracy.
@@ -48,16 +48,18 @@ The current default configuration uses:
 - minimum learning rate `1e-6`,
 - cosine learning-rate decay,
 - DropPath increasing progressively up to `0.1`,
+- a six-block model with 384 dimensions, six attention heads, and a 1536-dimensional MLP,
 - EMA decay `0.9999`,
 - RandAugment with `N=2, M=9`,
 - mixup with `α=0.1`,
+- weight decay `0.05`,
 - AdamW with separate decay and no-decay parameter groups.
 
 Raw and EMA validation performance are evaluated every epoch.
 
 Clean training accuracy is also measured without random augmentation or mixup so the train/validation generalization gap can be monitored directly.
 
-For controlled experiments, restart the kernel between runs and keep all unrelated settings fixed.
+The default `wd05` run resumes a matching checkpoint from `checkpoints/generalization-v1/wd05/validation/`. To test the smaller CutMix model from scratch in its own folder, select `EXPERIMENT = "compact_cutmix"` before restarting the kernel. For controlled experiments, restart the kernel between runs and keep all unrelated settings fixed.
 
 ## Current Status
 
@@ -76,10 +78,10 @@ The training pipeline itself is stable, but further work is needed to improve ge
 - Reduce the remaining train/validation generalization gap.
 - Investigate the validation-loss plateau.
 - Tune DropPath strength.
-- Tune mixup strength.
+- Compare mixup strength between the existing experiment presets.
 - Tune RandAugment strength.
 - Tune weight decay.
-- Test CutMix as an additional regularization method.
+- Compare the CutMix presets with their corresponding controls.
 - Test label smoothing.
 - Run controlled ablations so only one major variable changes per experiment.
 - Compare raw and EMA validation performance.
